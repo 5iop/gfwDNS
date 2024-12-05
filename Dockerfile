@@ -1,18 +1,23 @@
 # 使用多阶段构建
 FROM golang:1.21-alpine AS builder
 
-# 设置工作目录
-WORKDIR /app
-
 # 安装构建依赖
-RUN apk add --no-cache git
+RUN apk add --no-cache git gcc musl-dev
 
-# 拷贝源代码
+# 设置工作目录
+WORKDIR /build
+
+# 首先复制 go.mod 和 go.sum
+COPY go.mod go.sum ./
+
+# 下载依赖
+RUN go mod download
+
+# 然后复制源代码
 COPY . .
 
 # 构建应用
-RUN go mod download && \
-    CGO_ENABLED=0 GOOS=linux go build -o gfwdns
+RUN CGO_ENABLED=0 GOOS=linux go build -o gfwdns
 
 # 使用轻量级基础镜像
 FROM alpine:latest
@@ -27,8 +32,8 @@ RUN adduser -D -u 1000 dnsuser
 RUN mkdir -p /etc/gfwdns && \
     chown -R dnsuser:dnsuser /etc/gfwdns
 
-# 拷贝程序
-COPY --from=builder /app/gfwdns /usr/local/bin/
+# 从构建阶段复制二进制文件
+COPY --from=builder /build/gfwdns /usr/local/bin/
 
 # 设置用户
 USER dnsuser
