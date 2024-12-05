@@ -30,10 +30,6 @@ RUN mkdir -p /etc/gfwdns && \
 # 拷贝程序
 COPY --from=builder /app/gfwdns /usr/local/bin/
 
-# 拷贝默认配置文件
-COPY config.yaml /etc/gfwdns/
-COPY whitelist.txt /etc/gfwdns/
-
 # 设置用户
 USER dnsuser
 
