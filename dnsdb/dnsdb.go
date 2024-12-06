@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	defaultTTL = 86400 // defaultTTL 是默认的TTL值，当记录没有TTL时使用此值
-	maxTTL     = 86400 // maxTTL 是允许的最大TTL值，超过此值会被截断，这可以防止TTL设置过长导致记录长期占用内存
+	defaultTTL = 86400 * 30 // defaultTTL 是默认的TTL值，当记录没有TTL时使用此值
+	maxTTL     = 86400 * 30 // maxTTL 是允许的最大TTL值，超过此值会被截断，这可以防止TTL设置过长导致记录长期占用内存
 )
 
 // DNSRecord 表示一条DNS记录

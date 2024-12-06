@@ -131,8 +131,7 @@ Supports all common DNS record types including:
 
 - Uses LRU (Least Recently Used) algorithm
 - Maintains up to 10,000 most frequently accessed records
-- Default TTL: 86400 seconds (24 hours)
-- Maximum TTL: 86400 seconds (24 hours)
+- Default TTL: 86400 * 30 seconds (30 days)
 - Automatic cleanup of expired records
 
 ## Security Considerations
