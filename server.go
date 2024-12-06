@@ -14,7 +14,8 @@ import (
 
 type DNSServer struct {
 	db            *dnsdb.DNSDB
-	server        *dns.Server
+	tcpServer     *dns.Server
+	udpServer     *dns.Server
 	upstreamAddr  string
 	upstreamPort  int
 	notifyChan    chan dnsdb.DNSRecord
@@ -132,7 +133,14 @@ func NewDNSServer(addr string, upstreamAddr string, upstreamPort int, whitelist 
 	}
 
 	// 创建DNS服务器
-	server.server = &dns.Server{
+	server.tcpServer = &dns.Server{
+		Addr:    addr,
+		Net:     "tcp",
+		Handler: dns.HandlerFunc(server.handleDNSRequest),
+	}
+
+	// 创建UDP DNS服务器
+	server.udpServer = &dns.Server{
 		Addr:    addr,
 		Net:     "udp",
 		Handler: dns.HandlerFunc(server.handleDNSRequest),
@@ -146,16 +154,54 @@ func NewDNSServer(addr string, upstreamAddr string, upstreamPort int, whitelist 
 
 // Start 启动DNS服务器
 func (s *DNSServer) Start() error {
-	return s.server.ListenAndServe()
+	// 启动TCP服务器
+	go func() {
+		if err := s.tcpServer.ListenAndServe(); err != nil {
+			log.Printf("TCP server error: %v", err)
+		}
+	}()
+
+	// 启动UDP服务器
+	go func() {
+		if err := s.udpServer.ListenAndServe(); err != nil {
+			log.Printf("UDP server error: %v", err)
+		}
+	}()
+
+	// 等待服务器运行
+	select {}
 }
 
 // Stop 停止DNS服务器
 func (s *DNSServer) Stop() error {
-	if err := s.server.Shutdown(); err != nil {
-		return err
+	var errors []error
+
+	// 停止TCP服务器
+	if err := s.tcpServer.Shutdown(); err != nil {
+		errors = append(errors, fmt.Errorf("TCP shutdown error: %v", err))
 	}
+
+	// 停止UDP服务器
+	if err := s.udpServer.Shutdown(); err != nil {
+		errors = append(errors, fmt.Errorf("UDP shutdown error: %v", err))
+	}
+
+	// 关闭上游连接和数据库
 	s.up.Close()
-	return s.db.Close()
+	if err := s.db.Close(); err != nil {
+		errors = append(errors, fmt.Errorf("database close error: %v", err))
+	}
+
+	// 如果有任何错误，返回组合的错误信息
+	if len(errors) > 0 {
+		var errMsg strings.Builder
+		for _, err := range errors {
+			errMsg.WriteString(err.Error() + "; ")
+		}
+		return fmt.Errorf("shutdown errors: %s", errMsg.String())
+	}
+
+	return nil
 }
 
 // handleDNSRequest 处理DNS请求
